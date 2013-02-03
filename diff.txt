@@ -1,0 +1,164 @@
+diff --git a/app/controllers/users_controller.rb b/app/controllers/users_controller.rb
+index d645ebe..a78b6ce 100644
+--- a/app/controllers/users_controller.rb
++++ b/app/controllers/users_controller.rb
+@@ -5,6 +5,7 @@ class UsersController < ApplicationController
+   
+   def show
+     @user = User.find(params[:id])
++    @microposts = @user.microposts.paginate(page: params[:page])
+   end
+ 
+   def new
+diff --git a/app/models/user.rb b/app/models/user.rb
+index fa2d43b..b138b28 100644
+--- a/app/models/user.rb
++++ b/app/models/user.rb
+@@ -12,6 +12,7 @@
+ class User < ActiveRecord::Base
+   attr_accessible :email, :name, :password, :password_confirmation
+   has_secure_password
++  has_many :microposts, dependent: :destroy
+   
+   before_save { |user| user.email = email.downcase }
+   before_save :create_remember_token
+diff --git a/app/views/users/show.html.erb b/app/views/users/show.html.erb
+index 274ba66..2c09242 100644
+--- a/app/views/users/show.html.erb
++++ b/app/views/users/show.html.erb
+@@ -8,4 +8,13 @@
+       </h1>
+     </section>
+   </aside>
++  <div class="span8">
++    <% if @user.microposts.any? %>
++      <h3>Microposts (<%= @user.microposts.count %>)</h3>
++      <ol class="microposts">
++        <%= render @microposts %>
++      </ol>
++      <%= will_paginate @microposts %>
++    <% end %>
++  </div>
+ </div>
+\ No newline at end of file
+diff --git a/db/schema.rb b/db/schema.rb
+index f3d7a72..a4420dc 100644
+--- a/db/schema.rb
++++ b/db/schema.rb
+@@ -11,7 +11,16 @@
+ #
+ # It's strongly recommended to check this file into your version control system.
+ 
+-ActiveRecord::Schema.define(:version => 20121022183430) do
++ActiveRecord::Schema.define(:version => 20121026034357) do
++
++  create_table "microposts", :force => true do |t|
++    t.string   "content"
++    t.integer  "user_id"
++    t.datetime "created_at", :null => false
++    t.datetime "updated_at", :null => false
++  end
++
++  add_index "microposts", ["user_id", "created_at"], :name => "index_microposts_on_user_id_and_created_at"
+ 
+   create_table "users", :force => true do |t|
+     t.string   "name"
+diff --git a/lib/tasks/sample_data.rake b/lib/tasks/sample_data.rake
+index 60589e6..710edd0 100644
+--- a/lib/tasks/sample_data.rake
++++ b/lib/tasks/sample_data.rake
+@@ -14,6 +14,10 @@ namespace :db do
+                    email: email,
+                    password: password,
+                    password_confirmation: password)
++    users = User.all(limit: 6)
++    50.times do
++      content = Faker::Lorem.sentence(5)
++      users.each { |user| user.microposts.create!(content: content) }
+     end
+   end
+ end
+\ No newline at end of file
+diff --git a/spec/factories.rb b/spec/factories.rb
+index 08eeb60..d2121c0 100644
+--- a/spec/factories.rb
++++ b/spec/factories.rb
+@@ -9,4 +9,9 @@ FactoryGirl.define do
+       admin true
+     end
+   end
++
++  factory :micropost do
++    content "Lorem ipsum"
++    user
++  end
+ end
+\ No newline at end of file
+diff --git a/spec/models/user_spec.rb b/spec/models/user_spec.rb
+index d52f1d4..cb87ae8 100644
+--- a/spec/models/user_spec.rb
++++ b/spec/models/user_spec.rb
+@@ -15,7 +15,8 @@ describe User do
+   it { should respond_to(:password_confirmation) }
+   it { should respond_to(:remember_token) }
+   it { should respond_to(:authenticate) }
+-
++  it { should respond_to(:microposts) }
++  
+   it { should be_valid }
+   
+   it { should_not be_admin }
+@@ -126,5 +127,28 @@ describe User do
+     before { @user.save }
+     its(:remember_token) { should_not be_blank }
+   end  
+-  
++
++  describe "micropost associations" do
++
++    before { @user.save }
++    let!(:older_micropost) do 
++      FactoryGirl.create(:micropost, user: @user, created_at: 1.day.ago)
++    end
++    let!(:newer_micropost) do
++      FactoryGirl.create(:micropost, user: @user, created_at: 1.hour.ago)
++    end
++
++    it "should have the right microposts in the right order" do
++      @user.microposts.should == [newer_micropost, older_micropost]
++    end
++
++    it "should destroy associated microposts" do
++      microposts = @user.microposts.dup
++      @user.destroy
++      microposts.should_not be_empty
++      microposts.each do |micropost|
++        Micropost.find_by_id(micropost.id).should be_nil
++      end
++    end
++  end  
+ end  
+diff --git a/spec/requests/user_pages_spec.rb b/spec/requests/user_pages_spec.rb
+index b8e4177..d72cb3f 100644
+--- a/spec/requests/user_pages_spec.rb
++++ b/spec/requests/user_pages_spec.rb
+@@ -52,10 +52,19 @@ describe "User pages" do
+   
+   describe "profile page" do
+     let(:user) { FactoryGirl.create(:user) }
++    let!(:m1) { FactoryGirl.create(:micropost, user: user, content: "Foo") }
++    let!(:m2) { FactoryGirl.create(:micropost, user: user, content: "Bar") } 
++    
+     before { visit user_path(user) }
+ 
+     it { should have_selector('h1',    text: user.name) }
+     it { should have_selector('title', text: user.name) }
++
++    describe "microposts" do
++      it { should have_content(m1.content) }
++      it { should have_content(m2.content) }
++      it { should have_content(user.microposts.count) }
++    end
+   end
+ 
+   describe "signup page" do
