@@ -1,0 +1,8 @@
+=== neilrobau-sample-app2 Config Vars
+DATABASE_URL:                postgres://nukccwyanbdkjy:pCF9yZMPDEaRDIQacNA_p7pxeV@ec2-54-243-128-213.compute-1.amazonaws.com:5432/d125bi1b8a6bir
+GEM_PATH:                    vendor/bundle/ruby/1.9.1
+HEROKU_POSTGRESQL_GREEN_URL: postgres://nukccwyanbdkjy:pCF9yZMPDEaRDIQacNA_p7pxeV@ec2-54-243-128-213.compute-1.amazonaws.com:5432/d125bi1b8a6bir
+LANG:                        en_US.UTF-8
+PATH:                        bin:vendor/bundle/ruby/1.9.1/bin:/usr/local/bin:/usr/bin:/bin
+RACK_ENV:                    production
+RAILS_ENV:                   production

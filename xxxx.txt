@@ -1,0 +1,105 @@
+  0 require 'spec_helper'
+  0 
+  1 describe "Authentication" do
+  1 
+  1   subject { page }
+  1 
+  2   describe "signin page" do
+  2     before { visit signin_path }
+  2 
+  2     it { should have_selector('h1',    text: 'Sign in') }
+  2     it { should have_selector('title', text: 'Sign in') }
+  1   end
+  1   
+  2   describe "signin" do
+  2     before { visit signin_path }
+  2 
+  3     describe "with invalid information" do
+  3       before { click_button "Sign in" }
+  3 
+  3       it { should have_selector('title', text: 'Sign in') }
+  3       it { should have_selector('div.alert.alert-error', text: 'Invalid') }
+  2     end
+  3     describe "after visiting another page" do
+  3       before { click_link "Home" }
+  3       it { should_not have_selector('div.alert.alert-error') }
+  2     end
+  2  
+  3     describe "with valid information" do
+  3       let(:user) { FactoryGirl.create(:user) }
+  4       before do
+  4         fill_in "Email",    with: user.email
+  4         fill_in "Password", with: user.password
+  4         click_button "Sign in"
+  3       end
+  3 
+  3       it { should have_selector('title', text: user.name) }
+  3       it { should have_link('Users',    href: users_path) }
+  3       it { should have_link('Profile', href: user_path(user)) }
+  3       it { should have_link('Settings', href: edit_user_path(user)) }
+  3       it { should have_link('Sign out', href: signout_path) }
+  3       it { should_not have_link('Sign in', href: signin_path) }
+  3       
+  4       describe "followed by signout" do
+  4         before { click_link "Sign out" }
+  4         it { should have_link('Sign in') }
+  3       end
+  2     end
+  1   end
+  1 
+  2   describe "authorization" do
+  2 
+  3     describe "for non-signed-in users" do
+  3       let(:user) { FactoryGirl.create(:user) }
+  3 
+  4       describe "in the Users controller" do
+  4 
+  5         describe "visiting the edit page" do
+  5           before { visit edit_user_path(user) }
+  5           it { should have_selector('title', text: 'Sign in') }
+  4         end
+  4 
+  5         describe "submitting to the update action" do
+  5           before { put user_path(user) }
+  5           specify { response.should redirect_to(signin_path) }
+  4         end
+  4 
+  5         describe "visiting the following page" do
+  5           before { visit following_user_path(user) }
+  5           it { should have_selector('title', text: 'Sign in') }
+  4         end
+  4 
+  5         describe "visiting the followers page" do
+  5           before { visit followers_user_path(user) }
+  5           it { should have_selector('title', text: 'Sign in') }
+  4         end
+  3       end
+  4       describe "in the Relationships controller" do
+  5         describe "submitting to the create action" do
+  5           before { post relationships_path }
+  5           specify { response.should redirect_to(signin_path) }
+  4         end
+  4 
+  5         describe "submitting to the destroy action" do
+  5           before { delete relationship_path(1) }
+  5           specify { response.should redirect_to(signin_path) }          
+  4         end
+  3       end
+  3       
+  4       describe "in the Microposts controller" do
+  4 
+  5         describe "submitting to the create action" do
+  5           before { post microposts_path }
+  5           specify { response.should redirect_to(signin_path) }
+  4         end
+  4 
+  5         describe "submitting to the destroy action" do
+  5           before { delete micropost_path(FactoryGirl.create(:micropost)) }
+  5           specify { response.should redirect_to(signin_path) }
+  4         end
+  3       end
+  3 
+  3 
+  2     end
+  1   end
+  0 end
